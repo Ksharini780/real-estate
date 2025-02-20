@@ -7,63 +7,63 @@ import listingRouter from './routes/listing.route.js';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 
-// Load environment variables
-dotenv.config();
+// ✅ Load environment variables correctly
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// Get the directory path for ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// ✅ Ensure dotenv is loaded properly
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+// ✅ Check if MONGO URI is loading
+if (!process.env.MONGO) {
+  console.error("❌ MONGO URI is missing. Check your .env file.");
+  process.exit(1);
+}
+
+console.log("✅ MongoDB URI Loaded:", process.env.MONGO);
 
 const app = express();
 
-// Debugging: Check if MONGO URI is loaded correctly
-console.log("MongoDB URI:", process.env.MONGO);
-
-if (!process.env.MONGO) {
-  console.error("❌ MONGO URI is missing. Please check your .env file.");
-  process.exit(1); // Stop the server if no MongoDB URI is found
-}
-
-// Connect to MongoDB
-mongoose
-  .connect(process.env.MONGO, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => {
-    console.log('✅ Connected to MongoDB!');
-  })
+// ✅ Connect to MongoDB with proper error handling
+mongoose.connect(process.env.MONGO, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+  .then(() => console.log('✅ Connected to MongoDB!'))
   .catch((err) => {
     console.error('❌ MongoDB Connection Error:', err);
     process.exit(1); // Stop the server if MongoDB connection fails
   });
 
-// Middleware
+// ✅ Middleware
 app.use(express.json());
 app.use(cookieParser());
 
-// Serve static files from React frontend (if applicable)
-const __dirname = path.resolve();
-app.use(express.static(path.join(__dirname, '/client/dist')));
+// ✅ Serve static files from React frontend (if applicable)
+app.use(express.static(path.join(__dirname, 'client', 'dist')));
 
-// API Routes
+// ✅ API Routes
 app.use('/api/user', userRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/listing', listingRouter);
 
-// Handle React frontend for all other routes
+// ✅ Handle React frontend for all other routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
 });
 
-// Global Error Handler
+// ✅ Global Error Handler
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500;
   const message = err.message || 'Internal Server Error';
-  res.status(statusCode).json({
-    success: false,
-    statusCode,
-    message,
-  });
+  res.status(statusCode).json({ success: false, statusCode, message });
 });
 
-// Start Server
+// ✅ Start Server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}!`);
