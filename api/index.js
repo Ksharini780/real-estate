@@ -68,3 +68,6 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}!`);
 });
+
+//MONGO=mongodb+srv://ksharini780:svh%401212@mern-estate.6yhy4.mongodb.net/mern-estate?retryWrites=true&w=majority&appName=mern-estate
+//JWT_SECRET='po0i2394jfe9fick2e'
