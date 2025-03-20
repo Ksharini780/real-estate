@@ -1,4 +1,4 @@
-import { FaSearch } from 'react-icons/fa';
+import { FaSearch, FaHeart } from 'react-icons/fa';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useEffect, useState } from 'react';
@@ -31,6 +31,8 @@ export default function Header() {
             <span className='text-slate-700'>Estate</span>
           </h1>
         </Link>
+         
+    
         <form
           onSubmit={handleSubmit}
           className='bg-slate-100 p-3 rounded-lg flex items-center'
@@ -68,6 +70,11 @@ export default function Header() {
               <li className=' text-slate-700 hover:underline'> Sign in</li>
             )}
           </Link>
+            {/* Favorites Link */}
+        <Link to='/favorites' className='flex items-center gap-2'>
+          
+          <span className='text-slate-700'>Favorites</span>
+        </Link>
         </ul>
       </div>
     </header>

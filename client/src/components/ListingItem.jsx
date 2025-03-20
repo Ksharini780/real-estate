@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom';
 import { MdLocationOn } from 'react-icons/md';
-import { useState } from 'react';
+import { FaHeart, FaRegHeart } from 'react-icons/fa';
+import { useState, useEffect } from 'react';
 
 export default function ListingItem({ listing }) {
   const [loanAmount, setLoanAmount] = useState(0);
   const [interestRate, setInterestRate] = useState(7.5); // Default 7.5% interest
   const [years, setYears] = useState(20); // Default 20-year loan
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState([]);
 
   const price = listing.offer ? listing.discountPrice || 0 : listing.regularPrice || 0;
 
@@ -17,10 +20,41 @@ export default function ListingItem({ listing }) {
       (Math.pow(1 + monthlyInterest, numPayments) - 1);
     setLoanAmount(emi.toFixed(2));
   };
+  
+  
+  useEffect(() => {
+    // Load saved favorites from local storage
+    const savedFavorites = JSON.parse(localStorage.getItem('favorites')) || [];
+    setFavoriteIds(savedFavorites);
+
+    // Check if the current listing is a favorite
+    setIsFavorite(savedFavorites.includes(listing._id));
+  }, [listing._id]);
+
+  const toggleFavorite = (e) => {
+    e.preventDefault(); // Prevent navigation when clicking the heart icon
+    let updatedFavorites;
+
+    if (isFavorite) {
+      updatedFavorites = favoriteIds.filter((id) => id !== listing._id);
+    } else {
+      updatedFavorites = [...favoriteIds, listing._id];
+    }
+
+    setFavoriteIds(updatedFavorites);
+    localStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+    setIsFavorite(!isFavorite);
+  };
 
   return (
-    <div className='bg-white shadow-md hover:shadow-lg transition-shadow overflow-hidden rounded-lg w-full sm:w-[330px]'>
-
+    <div className='relative bg-white shadow-md hover:shadow-lg transition-shadow overflow-hidden rounded-lg w-full sm:w-[330px]'>
+        {/* Heart Icon */}
+        <button
+        onClick={toggleFavorite}
+        className="absolute top-3 right-3 text-red-500 text-xl cursor-pointer z-10"
+      >
+        {isFavorite ? <FaHeart /> : <FaRegHeart />}
+      </button>
       {/* ✅ Listing Details - Inside <Link> */}
       <Link to={`/listing/${listing._id}`}>
         <img

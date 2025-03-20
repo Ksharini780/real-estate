@@ -43,17 +43,20 @@ mongoose.connect(process.env.MONGO, {
 app.use(express.json());
 app.use(cookieParser());
 
-// ✅ Serve static files from React frontend (if applicable)
-app.use(express.static(path.join(__dirname, '../client/dist')));
 
 // ✅ API Routes
 app.use('/api/user', userRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/listing', listingRouter);
 
-// ✅ Handle React frontend for all other routes
+
+
+// Serve frontend
+const clientPath = path.join(__dirname, '../client/dist'); // Ensure this is correct
+app.use(express.static(clientPath));
+
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/dist', 'index.html'));
+  res.sendFile(path.join(clientPath, 'index.html'));
 });
 
 // ✅ Global Error Handler
