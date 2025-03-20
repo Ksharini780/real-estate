@@ -1,12 +1,5 @@
-import { useSelector } from 'react-redux';
-import { useRef, useState, useEffect } from 'react';
-import {
-  getDownloadURL,
-  getStorage,
-  ref,
-  uploadBytesResumable,
-} from 'firebase/storage';
-import { app, storage } from '../firebase';
+import { useSelector, useDispatch } from 'react-redux';
+import { useEffect, useRef, useState } from 'react';
 import {
   updateUserStart,
   updateUserSuccess,
@@ -15,26 +8,24 @@ import {
   deleteUserStart,
   deleteUserSuccess,
   signOutUserStart,
+  signOutUserSuccess,
+  signOutUserFailure,
 } from '../redux/user/userSlice';
-import { useDispatch } from 'react-redux';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+
 export default function Profile() {
   const fileRef = useRef(null);
   const { currentUser, loading, error } = useSelector((state) => state.user);
-  const [file, setFile] = useState(undefined);
-  const [filePerc, setFilePerc] = useState(0);
-  const [fileUploadError, setFileUploadError] = useState(false);
   const [formData, setFormData] = useState({});
+  const [file, setFile] = useState(null);
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [showListingsError, setShowListingsError] = useState(false);
   const [userListings, setUserListings] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [fileUploadError, setFileUploadError] = useState(null);
+  const [fileUploaded, setFileUploaded] = useState(false);
   const dispatch = useDispatch();
-
-  // firebase storage
-  // allow read;
-  // allow write: if
-  // request.resource.size < 2 * 1024 * 1024 &&
-  // request.resource.contentType.matches('image/.*')
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (file) {
@@ -42,30 +33,27 @@ export default function Profile() {
     }
   }, [file]);
 
-  const handleFileUpload = (file) => {
-    const storage = getStorage(app);
-    const fileName = new Date().getTime() + file.name;
-    const storageRef = ref(storage, fileName);
-    const uploadTask = uploadBytesResumable(storageRef, file);
-
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const progress =
-          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setFilePerc(Math.round(progress));
-      },
-      (error) => {
-        setFileUploadError(true);
-      },
-      () => {
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) =>
-          setFormData({ ...formData, avatar: downloadURL })
-        );
+  const handleFileUpload = async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+  
+    try {
+      const res = await fetch('/api/listing/upload', {
+        method: 'POST',
+        body: formData,
+      });
+  
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.message);
       }
-    );
+  
+      setFormData((prev) => ({ ...prev, avatar: data.url })); // Store Cloudinary URL
+    } catch (error) {
+      console.error('Image upload failed:', error.message);
+    }
   };
-
+  
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
   };
@@ -86,7 +74,6 @@ export default function Profile() {
         dispatch(updateUserFailure(data.message));
         return;
       }
-
       dispatch(updateUserSuccess(data));
       setUpdateSuccess(true);
     } catch (error) {
@@ -105,7 +92,8 @@ export default function Profile() {
         dispatch(deleteUserFailure(data.message));
         return;
       }
-      dispatch(deleteUserSuccess(data));
+      dispatch(deleteUserSuccess());
+      navigate('/');
     } catch (error) {
       dispatch(deleteUserFailure(error.message));
     }
@@ -117,25 +105,24 @@ export default function Profile() {
       const res = await fetch('/api/auth/signout');
       const data = await res.json();
       if (data.success === false) {
-        dispatch(deleteUserFailure(data.message));
+        dispatch(signOutUserFailure(data.message));
         return;
       }
-      dispatch(deleteUserSuccess(data));
+      dispatch(signOutUserSuccess());
+      navigate('/login');
     } catch (error) {
-      dispatch(deleteUserFailure(data.message));
+      dispatch(signOutUserFailure(error.message));
     }
   };
 
   const handleShowListings = async () => {
     try {
-      setShowListingsError(false);
-      const res = await fetch(`/api/user/listings/${currentUser._id}`);
+      const res = await fetch(`/api/listings/user/${currentUser._id}`);
       const data = await res.json();
       if (data.success === false) {
         setShowListingsError(true);
         return;
       }
-
       setUserListings(data);
     } catch (error) {
       setShowListingsError(true);
@@ -149,17 +136,14 @@ export default function Profile() {
       });
       const data = await res.json();
       if (data.success === false) {
-        console.log(data.message);
         return;
       }
-
-      setUserListings((prev) =>
-        prev.filter((listing) => listing._id !== listingId)
-      );
+      setUserListings(userListings.filter((listing) => listing._id !== listingId));
     } catch (error) {
-      console.log(error.message);
+      console.error('Failed to delete listing');
     }
   };
+
   return (
     <div className='p-3 max-w-lg mx-auto'>
       <h1 className='text-3xl font-semibold text-center my-7'>Profile</h1>
@@ -179,17 +163,17 @@ export default function Profile() {
         />
         <p className='text-sm self-center'>
           {fileUploadError ? (
-            <span className='text-red-700'>
-              Error Image upload (image must be less than 2 mb)
-            </span>
-          ) : filePerc > 0 && filePerc < 100 ? (
-            <span className='text-slate-700'>{`Uploading ${filePerc}%`}</span>
-          ) : filePerc === 100 ? (
-            <span className='text-green-700'>Image successfully uploaded!</span>
-          ) : (
-            ''
-          )}
-        </p>
+              <span className='text-red-700'>
+                  Error uploading image (must be less than 2MB)
+               </span>
+                ) : uploading ? (
+              <span className='text-slate-700'>Uploading...</span>
+                ) : fileUploaded ? (
+              <span className='text-green-700'>Image successfully uploaded!</span>
+                ) : (
+                        ''
+                )}
+         </p>
         <input
           type='text'
           placeholder='username'

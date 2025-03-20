@@ -44,7 +44,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 // ✅ Serve static files from React frontend (if applicable)
-app.use(express.static(path.join(__dirname, 'client', 'dist')));
+app.use(express.static(path.join(__dirname, '../client/dist')));
 
 // ✅ API Routes
 app.use('/api/user', userRouter);
@@ -53,7 +53,7 @@ app.use('/api/listing', listingRouter);
 
 // ✅ Handle React frontend for all other routes
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
+  res.sendFile(path.join(__dirname, '../client/dist', 'index.html'));
 });
 
 // ✅ Global Error Handler
@@ -64,7 +64,7 @@ app.use((err, req, res, next) => {
 });
 
 // ✅ Start Server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}!`);
 });

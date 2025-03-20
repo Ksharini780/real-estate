@@ -1,17 +1,11 @@
 import { useState } from 'react';
-import {
-  getDownloadURL,
-  getStorage,
-  ref,
-  uploadBytesResumable,
-} from 'firebase/storage';
-import { app, storage } from '../firebase';
 import { useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 export default function CreateListing() {
   const { currentUser } = useSelector((state) => state.user);
   const navigate = useNavigate();
+  const params = useParams();
   const [files, setFiles] = useState([]);
   const [formData, setFormData] = useState({
     imageUrls: [],
@@ -21,7 +15,7 @@ export default function CreateListing() {
     type: 'rent',
     bedrooms: 1,
     bathrooms: 1,
-    regularPrice: 5000,
+    regularPrice: 50,
     discountPrice: 0,
     offer: false,
     parking: false,
@@ -31,95 +25,76 @@ export default function CreateListing() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
-  console.log(formData);
-  const handleImageSubmit = (e) => {
-    if (files.length > 0 && files.length + formData.imageUrls.length < 7) {
+
+  const handleImageSubmit = async () => {
+    if (!files || files.length === 0) {
+      return setImageUploadError('Please select an image to upload');
+    }
+    
+    if (files.length + formData.imageUrls.length <= 6) {
       setUploading(true);
       setImageUploadError(false);
-      const promises = [];
-
-      for (let i = 0; i < files.length; i++) {
-        promises.push(storeImage(files[i]));
+      
+      const promises = files.map(file => storeImage(file)); // Upload all images
+  
+      try {
+        const urls = await Promise.all(promises); // Wait for all uploads
+        setFormData(prevState => ({
+          ...prevState,
+          imageUrls: prevState.imageUrls.concat(urls),
+        }));
+        setUploading(false);
+      } catch (err) {
+        setImageUploadError('Image upload failed (2 MB max per image)');
+        setUploading(false);
       }
-      Promise.all(promises)
-        .then((urls) => {
-          setFormData({
-            ...formData,
-            imageUrls: formData.imageUrls.concat(urls),
-          });
-          setImageUploadError(false);
-          setUploading(false);
-        })
-        .catch((err) => {
-          setImageUploadError('Image upload failed (2 mb max per image)');
-          setUploading(false);
-        });
     } else {
-      setImageUploadError('You can only upload 6 images per listing');
+      setImageUploadError('You can only upload up to 6 images per listing');
       setUploading(false);
     }
   };
+  
 
   const storeImage = async (file) => {
-    return new Promise((resolve, reject) => {
-      const storage = getStorage(app);
-      const fileName = new Date().getTime() + file.name;
-      const storageRef = ref(storage, fileName);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log(`Upload is ${progress}% done`);
-        },
-        (error) => {
-          reject(error);
-        },
-        () => {
-          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-            resolve(downloadURL);
-          });
-        }
-      );
-    });
+    const data = new FormData();
+    data.append('file', file);
+    data.append('upload_preset', 'mern_estate'); // Replace with your Cloudinary upload preset
+  
+    try {
+      const res = await fetch('https://api.cloudinary.com/v1_1/dnrkfktz0/image/upload', {
+        method: 'POST',
+        body: data,
+      });
+  
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.message || 'Upload failed');
+      }
+  
+      return result.secure_url; // Use 'secure_url' from Cloudinary response
+    } catch (error) {
+      throw new Error('Upload failed');
+    }
   };
+  
+  
 
   const handleRemoveImage = (index) => {
-    setFormData({
-      ...formData,
-      imageUrls: formData.imageUrls.filter((_, i) => i !== index),
-    });
+    setFormData(prevState => ({
+      ...prevState,
+      imageUrls: prevState.imageUrls.filter((_, i) => i !== index),
+    }));
   };
 
   const handleChange = (e) => {
-    if (e.target.id === 'sale' || e.target.id === 'rent') {
-      setFormData({
-        ...formData,
-        type: e.target.id,
-      });
-    }
-
-    if (
-      e.target.id === 'parking' ||
-      e.target.id === 'furnished' ||
-      e.target.id === 'offer'
-    ) {
-      setFormData({
-        ...formData,
-        [e.target.id]: e.target.checked,
-      });
-    }
-
-    if (
-      e.target.type === 'number' ||
-      e.target.type === 'text' ||
-      e.target.type === 'textarea'
-    ) {
-      setFormData({
-        ...formData,
-        [e.target.id]: e.target.value,
-      });
+    const { id, value, type, checked } = e.target;
+    
+    if (id === 'sale' || id === 'rent') {
+      setFormData(prevState => ({ ...prevState, type: id }));
+    } else if (['parking', 'furnished', 'offer'].includes(id)) {
+      setFormData(prevState => ({ ...prevState, [id]: checked }));
+    } else if (['number', 'text', 'textarea'].includes(type)) {
+      setFormData(prevState => ({ ...prevState, [id]: value }));
     }
   };
 
@@ -153,6 +128,7 @@ export default function CreateListing() {
       setLoading(false);
     }
   };
+
   return (
     <main className='p-3 max-w-4xl mx-auto'>
       <h1 className='text-3xl font-semibold text-center my-7'>
@@ -318,7 +294,7 @@ export default function CreateListing() {
           </p>
           <div className='flex gap-4'>
             <input
-              onChange={(e) => setFiles(e.target.files)}
+               onChange={(e) => setFiles(Array.from(e.target.files))}
               className='p-3 border border-gray-300 rounded w-full'
               type='file'
               id='images'
