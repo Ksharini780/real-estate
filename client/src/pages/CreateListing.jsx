@@ -58,7 +58,7 @@ export default function CreateListing() {
   const storeImage = async (file) => {
     const data = new FormData();
     data.append('file', file);
-    data.append('upload_preset', 'mern_estate'); // Replace with your Cloudinary upload preset
+    data.append('upload_preset', 'mern-estate'); // Replace with your Cloudinary upload preset
   
     try {
       const res = await fetch('https://api.cloudinary.com/v1_1/dnrkfktz0/image/upload', {
